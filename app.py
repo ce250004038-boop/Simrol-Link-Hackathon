@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import os
+
+
 from PIL import Image
 import json
 import uuid
@@ -441,7 +443,7 @@ if not st.session_state.logged_in:
                 st.subheader("Welcome Back!")
                 l_email = st.text_input("Email", key="l_email")
                 l_pass = st.text_input("Password", type="password", key="l_pass")
-                l_name = st.text_input("Your Name (for display)", key="l_name_input") # Ask for name
+                l_name = st.text_input("Your Name", key="l_name_input") # Ask for name
 
                 if st.button("Login", use_container_width=True, key="btn_login"):
                     if verify_credentials(l_email, l_pass):
