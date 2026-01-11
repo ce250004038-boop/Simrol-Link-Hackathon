@@ -14,14 +14,36 @@ from datetime import datetime
 
 st.set_page_config(page_title="Simrol-Link", page_icon="🚕", layout="wide")
 
-if "GOOGLE_API_KEY" in st.secrets:
-    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    model = genai.GenerativeModel('gemini-pro')
-    
-    with st.expander("✨ Ask Gemini: Travel Safety Tip"):
-        if st.button("Get a Safety Tip"):
-            response = model.generate_content("Give me a short, one-sentence safety tip for students sharing a cab in India.")
-            st.info(f"🤖 AI Safety Tip: {response.text}")
+# Configure Gemini if available
+model = None
+api_status = "ok" # ok, no_secrets, no_key
+
+try:
+    if "GOOGLE_API_KEY" in st.secrets:
+        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+        model = genai.GenerativeModel('gemini-1.5-flash')
+    else:
+        api_status = "no_key"
+except FileNotFoundError:
+    api_status = "no_secrets"
+except Exception:
+    api_status = "no_secrets" # Streamlit raises generic error sometimes if secrets missing
+
+with st.expander("✨ Ask Gemini: Travel Safety Tip"):
+    if st.button("Get a Safety Tip"):
+        if model:
+            try:
+                response = model.generate_content("Give me a short, one-sentence safety tip for students sharing a cab in India.")
+                st.info(f"🤖 AI Safety Tip: {response.text}")
+            except Exception as e:
+                st.error(f"⚠️ Could not generate tip. Error: {e}")
+        else:
+            if api_status == "no_secrets":
+                st.warning("⚠️ Trip Tip: Secrets file not found. Please create `.streamlit/secrets.toml` with your GOOGLE_API_KEY.")
+            elif api_status == "no_key":
+                st.warning("⚠️ Trip Tip: Secrets found, but `GOOGLE_API_KEY` is missing in it.")
+            
+            st.info("🤖 AI Safety Tip (Offline): Always share your live location with a trusted friend or family member while travelling.")
 
 
 
@@ -145,11 +167,31 @@ st.markdown("""
     header[data-testid="stHeader"] { background-color: rgba(0,0,0,0); }
     iframe { margin-bottom: -20px; }
     
-    /* Expander Styling */
-    .streamlit-expanderHeader {
-        background-color: rgba(0,0,0,0.5) !important;
-        border: 1px solid #ff00cc;
+    /* Expander Styling - Force Black Background */
+    div[data-testid="stExpander"] {
+        background-color: transparent !important;
+        border: none !important;
+    }
+    
+    div[data-testid="stExpander"] > details > summary {
+        background-color: #000000 !important;
+        background: #000000 !important;
+        border: 1px solid #ff00cc !important;
         color: white !important;
+        border-radius: 10px;
+    }
+    
+    div[data-testid="stExpander"] > details[open] > summary {
+         border-bottom-left-radius: 0 !important;
+         border-bottom-right-radius: 0 !important;
+    }
+    
+    div[data-testid="stExpander"] > details > div {
+        background-color: rgba(0,0,0,0.8) !important;
+        border: 1px solid #ff00cc;
+        border-top: none;
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 10px;
     }
     </style>
     """, unsafe_allow_html=True)
