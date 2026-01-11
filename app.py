@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import os
-
-
 from PIL import Image
 import json
 import uuid
@@ -300,6 +298,27 @@ def load_users():
 def save_users(users):
     with open(USERS_FILE, "w", encoding="utf-8") as f: json.dump(users, f)
 
+# --- SESSION HELPERS (PERSISTENCE) ---
+SESSION_FILE = "session_token.json"
+
+def load_session_from_disk():
+    if not os.path.exists(SESSION_FILE): return None
+    try:
+        with open(SESSION_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            # Basic validation (could add expiry)
+            if "email" in data: return data
+    except: pass
+    return None
+
+def save_session_to_disk(email, name):
+    with open(SESSION_FILE, "w", encoding="utf-8") as f:
+        json.dump({"email": email, "name": name}, f)
+
+def clear_session_from_disk():
+    if os.path.exists(SESSION_FILE):
+        os.remove(SESSION_FILE)
+
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -378,10 +397,26 @@ INDORE_LOCATIONS = sorted([
 ])
 
 # --- SESSION STATE ---
+# --- SESSION STATE & AUTO-LOGIN ---
 if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "user_email" not in st.session_state:
-    st.session_state.user_email = ""
+    # Try to load from disk first
+    disk_session = load_session_from_disk()
+    if disk_session:
+        st.session_state.logged_in = True
+        st.session_state.user_email = disk_session["email"]
+        st.session_state.user_name = disk_session.get("name", "")
+        # Load other profile stats
+        profile_data = get_profile(st.session_state.user_email)
+        if profile_data:
+            st.session_state.user_gender = profile_data.get("gender", "Male")
+            st.session_state.user_degree = profile_data.get("degree", list(academic_structure.keys())[0])
+            st.session_state.user_branch = profile_data.get("branch", academic_structure[st.session_state.user_degree][0])
+            st.session_state.user_year = profile_data.get("year", "1st")
+    else:
+        st.session_state.logged_in = False
+
+if "current_view" not in st.session_state: st.session_state.current_view = "Home" # Home, Profile
+if "user_email" not in st.session_state: st.session_state.user_email = ""
 if "user_name" not in st.session_state: st.session_state.user_name = ""
 if "user_gender" not in st.session_state: st.session_state.user_gender = "Male"
 if "user_degree" not in st.session_state: st.session_state.user_degree = list(academic_structure.keys())[0]
@@ -406,10 +441,18 @@ if not st.session_state.logged_in:
                 st.subheader("Welcome Back!")
                 l_email = st.text_input("Email", key="l_email")
                 l_pass = st.text_input("Password", type="password", key="l_pass")
+                l_name = st.text_input("Your Name (for display)", key="l_name_input") # Ask for name
+
                 if st.button("Login", use_container_width=True, key="btn_login"):
                     if verify_credentials(l_email, l_pass):
-                        st.session_state.logged_in = True
-                        st.session_state.user_email = l_email
+                        if not l_name:
+                            st.error("Please enter your name.")
+                        else:
+                            st.session_state.logged_in = True
+                            st.session_state.user_email = l_email
+                            st.session_state.user_name = l_name
+                            
+                            save_session_to_disk(l_email, l_name) # Persist Login
                         # Load Profile
                         profile_data = get_profile(l_email)
                         if profile_data:
@@ -443,8 +486,13 @@ if not st.session_state.logged_in:
                             st.error("🚫 User already exists! Please Login.")
                         else:
                             register_user(s_email, s_pass)
+                            # Auto-login after signup ? Maybe ask for name first? 
+                            # For now, let's redirect them to login to enter name or just set a default
+                            # Let's enforce name entry in Signup too to be smooth
                             st.session_state.logged_in = True
                             st.session_state.user_email = s_email
+                            st.session_state.user_name = s_email.split("@")[0] # Default name
+                            save_session_to_disk(s_email, st.session_state.user_name)
                             st.balloons()
                             st.success("Account Created Successfully!")
                             st.rerun()
@@ -468,64 +516,101 @@ if not st.session_state.logged_in:
 # 🚕 PAGE 2: MAIN APP
 # ==========================================
 else:
-    # --- SIDEBAR: PROFILE ---
+    # --- SIDEBAR: NAVIGATION ---
     with st.sidebar:
-        st.title("👤 My Profile")
-        uploaded_file = st.file_uploader("Upload Profile Pic", type=['jpg', 'png'])
-        if uploaded_file is not None:
-            image = Image.open(uploaded_file)
-            st.image(image, caption="That's you!", width=150)
+        first_name = st.session_state.user_name.split()[0] if st.session_state.user_name else "Student"
+        st.header(f"Hi, {first_name}! 👋")
+
+        # --- PROFILE (EXPANDER) ---
+        p_data = get_profile(st.session_state.user_email)
+        is_complete = all([
+            p_data.get("name"), 
+            p_data.get("gender"), 
+            p_data.get("degree"), 
+            p_data.get("branch"), 
+            p_data.get("year")
+        ])
         
-        if "user_name" not in st.session_state: st.session_state.user_name = ""
-        my_name = st.text_input("Name", st.session_state.user_name)
-        st.caption(f"Logged in as: {st.session_state.user_email}")
+        if "force_edit" not in st.session_state: st.session_state.force_edit = False
+
+        show_editor = (not is_complete) or st.session_state.force_edit
         
-        g_idx = ["Male", "Female", "Other"].index(st.session_state.user_gender) if st.session_state.user_gender in ["Male", "Female", "Other"] else 0
-        my_gender = st.selectbox("Gender", ["Male", "Female", "Other"], index=g_idx)
-        
-        degree_keys = list(academic_structure.keys())
-        d_idx = degree_keys.index(st.session_state.user_degree) if st.session_state.user_degree in degree_keys else 0
-        my_degree = st.selectbox("Degree Program", degree_keys, index=d_idx)
-        
-        available_branches = academic_structure[my_degree]
-        # Reset branch if degree changes, otherwise try to keep selection
-        current_b_idx = 0
-        if my_degree == st.session_state.user_degree and st.session_state.user_branch in available_branches:
-            current_b_idx = available_branches.index(st.session_state.user_branch)
-            
-        my_branch = st.selectbox("Specialization / Branch", available_branches, index=current_b_idx)
-        
-        y_options = ["1st", "2nd", "3rd", "4th", "5th+"]
-        y_idx = y_options.index(st.session_state.user_year) if st.session_state.user_year in y_options else 0
-        my_year = st.selectbox("Year", y_options, index=y_idx)
-        
-        if st.button("Save Profile", use_container_width=True):
-            st.session_state.user_name = my_name
-            st.session_state.user_gender = my_gender
-            st.session_state.user_degree = my_degree
-            st.session_state.user_branch = my_branch
-            st.session_state.user_year = my_year
-            
-            save_profile_to_disk(st.session_state.user_email, {
-                "name": my_name,
-                "gender": my_gender,
-                "degree": my_degree,
-                "branch": my_branch,
-                "year": my_year
-            })
-            st.success("Profile Updated! ✅")
-            
+        if show_editor:
+            expander_title = "✏️ Edit Details" if is_complete else "✏️ Complete Your Profile"
+            with st.expander(expander_title, expanded=True):
+                uploaded_file = st.file_uploader("Upload Profile Pic", type=['jpg', 'png'])
+                if uploaded_file is not None:
+                    image = Image.open(uploaded_file)
+                    st.image(image, caption="That's you!", width=150)
+                
+                my_name = st.text_input("Name", st.session_state.user_name)
+                
+                g_idx = ["Male", "Female", "Other"].index(st.session_state.user_gender) if st.session_state.user_gender in ["Male", "Female", "Other"] else 0
+                my_gender = st.selectbox("Gender", ["Male", "Female", "Other"], index=g_idx)
+                
+                degree_keys = list(academic_structure.keys())
+                d_idx = degree_keys.index(st.session_state.user_degree) if st.session_state.user_degree in degree_keys else 0
+                my_degree = st.selectbox("Degree Program", degree_keys, index=d_idx)
+                
+                available_branches = academic_structure[my_degree]
+                current_b_idx = 0
+                if my_degree == st.session_state.user_degree and st.session_state.user_branch in available_branches:
+                    current_b_idx = available_branches.index(st.session_state.user_branch)
+                    
+                my_branch = st.selectbox("Specialization / Branch", available_branches, index=current_b_idx)
+                
+                y_options = ["1st", "2nd", "3rd", "4th", "5th+"]
+                y_idx = y_options.index(st.session_state.user_year) if st.session_state.user_year in y_options else 0
+                my_year = st.selectbox("Year", y_options, index=y_idx)
+                
+                if st.button("Save Profile", use_container_width=True):
+                    st.session_state.user_name = my_name
+                    st.session_state.user_gender = my_gender
+                    st.session_state.user_degree = my_degree
+                    st.session_state.user_branch = my_branch
+                    st.session_state.user_year = my_year
+                    
+                    # Update Session on Disk too if name changed
+                    save_session_to_disk(st.session_state.user_email, my_name)
+
+                    save_profile_to_disk(st.session_state.user_email, {
+                        "name": my_name,
+                        "gender": my_gender,
+                        "degree": my_degree,
+                        "branch": my_branch,
+                        "year": my_year
+                    })
+                    st.session_state.force_edit = False # Hide after saving
+                    st.success("Profile Updated! ✅")
+                    st.rerun()
+        else:
+             # Just a small button to re-open if needed, or literally nothing as requested "vanish"
+             # I will put a very small button 
+             if st.button("⚙️ Edit Profile", key="open_edit"):
+                 st.session_state.force_edit = True
+                 st.rerun()
+
         st.divider()
-        if st.button("🗑️ Delete Profile", key="del_prof"):
-            delete_profile_data(st.session_state.user_email)
-            st.session_state.logged_in = False
+        
+        if st.button("🔓 Logout", use_container_width=True):
+            clear_session_from_disk()
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
             st.rerun()
 
-    # --- MAIN CONTENT & DOODLE AREA ---
+        if st.button("🗑️ Delete Profile", key="del_prof"):
+            delete_profile_data(st.session_state.user_email)
+            st.warning("Profile details cleared!")
+            st.rerun()
+
+    # --- MAIN CONTENT ---
+    # Always show Home View now (Profile is in sidebar)
     col1, col2 = st.columns([2, 1])
     with col1:
         st.title("Simrol-Link 🚕✨")
-        st.write(f"Welcome back, **{my_name if my_name else 'Student'}**!")
+        first_name = st.session_state.user_name.split()[0] if st.session_state.user_name else "Student"
+        st.write(f"Welcome, **{first_name}**!") # Welcome [Name]
+
     
 
 
@@ -711,16 +796,16 @@ else:
                 direction = st.selectbox("Route", ["Campus ⮕ City", "City ⮕ Campus"])
                 if direction == "Campus ⮕ City":
                     source = "IIT Indore"
-                    destination = st.selectbox("Destination", INDORE_LOCATIONS)
+                    destination = st.selectbox("Destination", INDORE_LOCATIONS, key="post_dest")
                 else:
-                    source = st.selectbox("Pickup Point", INDORE_LOCATIONS)
+                    source = st.selectbox("Pickup Point", INDORE_LOCATIONS, key="post_src")
                     destination = "IIT Indore"
                 c1, c2 = st.columns(2)
                 date = c1.date_input("Date")
                 time = c2.time_input("Time")
                 seats = st.slider("Seats Empty", 1, 6, 3)
                 contact = st.text_input("WhatsApp Group Link (Optional)")
-                host_name = my_name if my_name else "Anonymous"
+                host_name = st.session_state.user_name if st.session_state.user_name else "Anonymous"
                 
                 submitted = st.form_submit_button("🚀 Publish Ride", use_container_width=True)
                 if submitted:
@@ -730,7 +815,8 @@ else:
                         "Direction": direction, "Source": source, "Destination": destination, 
                         "Date": str(date), "Time": str(time), "Seats": seats, 
                         "Contact": contact, "HostName": host_name, 
-                        "Gender": my_gender, "Degree": my_degree, "Branch": my_branch, "Year": my_year,
+                        "Gender": st.session_state.user_gender, "Degree": st.session_state.user_degree, 
+                        "Branch": st.session_state.user_branch, "Year": st.session_state.user_year,
                         "requests": []
                     }
                     save_data(new_ride)
