@@ -30,14 +30,13 @@ Commuting from **IIT Indore (Simrol)** to Indore city (C21, Railway Station, Air
 
 ### 🌙 3. Ultra-Dark Mode UI
 * A sleek, custom-coded **Neon/Dark theme** designed for late-night usage.
-* Features high-contrast accessibility and smooth **Lottie Animations**.
+* Features high-contrast accessibility for comfortable viewing.
 
 ---
 
 ## 🛠️ Tech Stack
 * **Frontend:** [Streamlit](https://streamlit.io/) (Python)
 * **Backend Logic:** Python & Pandas
-* **Animations:** Lottie Files
 * **Data Handling:** CSV (Lightweight file-based database for hackathon efficiency)
 
 ---
@@ -76,9 +75,4 @@ Commuting from **IIT Indore (Simrol)** to Indore city (C21, Railway Station, Air
 
 ## 🤝 Contribution
 This project was built for a Hackathon 2026.
-* **Developer:** [Your Name / Team Name]
-* **Institution:** IIT Indore
-
----
-
-*Made with ❤️ and ☕ at Simrol.*
+* **Developer:**
