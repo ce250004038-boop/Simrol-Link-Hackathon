@@ -4,7 +4,6 @@
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
 ![Streamlit](https://img.shields.io/badge/Built%20with-Streamlit-ff4b4b)
-![Gemini AI](https://img.shields.io/badge/Powered%20by-Google%20Gemini-8E75B2)
 
 ---
 
@@ -29,11 +28,7 @@ Commuting from **IIT Indore (Simrol)** to Indore city (C21, Railway Station, Air
 * **Find Your Comfort Zone:** Filter available rides by **Gender**, **Year**, **Degree**, or **Branch**.
 * **Route Specific:** Easily switch between "Campus ⮕ City" and "City ⮕ Campus" routes.
 
-### 🤖 3. AI "Vibe Check" (Powered by Google Gemini)
-* Routes aren't just about maps. Our integrated AI analyzes your destination and time to give you a **funny, Gen-Z style travel tip** or roast before you book.
-* *Example:* "Going to C21 at 8 PM? Bestie, grab that boba but don't miss the last bus back!"
-
-### 🌙 4. Ultra-Dark Mode UI
+### 🌙 3. Ultra-Dark Mode UI
 * A sleek, custom-coded **Neon/Dark theme** designed for late-night usage.
 * Features high-contrast accessibility and smooth **Lottie Animations**.
 
@@ -42,7 +37,6 @@ Commuting from **IIT Indore (Simrol)** to Indore city (C21, Railway Station, Air
 ## 🛠️ Tech Stack
 * **Frontend:** [Streamlit](https://streamlit.io/) (Python)
 * **Backend Logic:** Python & Pandas
-* **AI Integration:** Google Gemini Pro API
 * **Animations:** Lottie Files
 * **Data Handling:** CSV (Lightweight file-based database for hackathon efficiency)
 
@@ -87,4 +81,4 @@ This project was built for a Hackathon 2026.
 
 ---
 
-*Made with ❤️ and ☕ at Simrol.*# Simrol-Link-Hackathon
+*Made with ❤️ and ☕ at Simrol.*
