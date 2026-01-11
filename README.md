@@ -1,5 +1,7 @@
 # 🚕 Simrol-Link
 
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://simrol-link-hackathon-j5ecgx2awhmbrhfczpr6xg.streamlit.app/)
+
 **The Exclusive Ride-Sharing Platform for IIT Indore.** *Find your squad. Split the cost. Vibe on the way.*
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
