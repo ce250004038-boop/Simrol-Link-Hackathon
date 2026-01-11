@@ -403,6 +403,12 @@ def delete_user_auth(email):
         save_users(users)
     delete_profile_data(email) # Also delete profile data
 
+def send_otp(email):
+    otp = str(random.randint(1000, 9999))
+    # In a real app, use smtplib here. For this demo/dev mode:
+    # st.toast(f"OTP sent to {email}: {otp}", icon="📧") 
+    # We will return it to display on screen for easy testing
+    return otp
 
 def delete_ride_data(ride_id):
     rides = load_data()
@@ -500,22 +506,22 @@ if not st.session_state.logged_in:
                 st.subheader("Welcome Back!")
                 l_email = st.text_input("Email", key="l_email")
                 l_pass = st.text_input("Password", type="password", key="l_pass")
-                l_name = st.text_input("Your Name", key="l_name_input") # Ask for name
 
                 if st.button("Login", use_container_width=True, key="btn_login"):
                     if verify_credentials(l_email, l_pass):
-                        if not l_name:
-                            st.error("Please enter your name.")
-                        else:
-                            st.session_state.logged_in = True
-                            st.session_state.user_email = l_email
-                            st.session_state.user_name = l_name
-                            
-                            save_session_to_disk(l_email, l_name) # Persist Login
                         # Load Profile
                         profile_data = get_profile(l_email)
+                        
+                        # Get Name from profile or fallback
+                        user_name = profile_data.get("name", l_email.split("@")[0])
+                        
+                        st.session_state.logged_in = True
+                        st.session_state.user_email = l_email
+                        st.session_state.user_name = user_name
+                        
+                        save_session_to_disk(l_email, user_name) # Persist Login
+                        
                         if profile_data:
-                            st.session_state.user_name = profile_data.get("name", "")
                             st.session_state.user_gender = profile_data.get("gender", "Male")
                             st.session_state.user_degree = profile_data.get("degree", list(academic_structure.keys())[0])
                             st.session_state.user_branch = profile_data.get("branch", academic_structure[st.session_state.user_degree][0])
@@ -528,12 +534,15 @@ if not st.session_state.logged_in:
             # --- SIGN UP TAB ---
             with auth_tab2:
                 st.subheader("New User?")
+                s_name = st.text_input("Full Name", key="s_name")
                 s_email = st.text_input("Enter Email (@iiti.ac.in)", key="s_email")
                 s_pass = st.text_input("Set Password", type="password", key="s_pass")
                 s_conf = st.text_input("Confirm Password", type="password", key="s_conf")
                 
                 if st.button("Sign Up", key="btn_signup"):
-                    if not s_email.endswith("@iiti.ac.in"):
+                    if not s_name:
+                        st.error("⚠️ Please enter your name.")
+                    elif not s_email.endswith("@iiti.ac.in"):
                         st.error("⚠️ Only @iiti.ac.in emails allowed.")
                     elif s_pass != s_conf:
                         st.error("⚠️ Passwords do not match.")
@@ -545,11 +554,20 @@ if not st.session_state.logged_in:
                             st.error("🚫 User already exists! Please Login.")
                         else:
                             register_user(s_email, s_pass)
+                            
+                            # Create Initial Profile
+                            save_profile_to_disk(s_email, {
+                                "name": s_name,
+                                "gender": "Male", 
+                                "degree": list(academic_structure.keys())[0],
+                                "branch": academic_structure[list(academic_structure.keys())[0]][0],
+                                "year": "1st"
+                            })
                            
                             st.session_state.logged_in = True
                             st.session_state.user_email = s_email
-                            st.session_state.user_name = s_email.split("@")[0] # Default name
-                            save_session_to_disk(s_email, st.session_state.user_name)
+                            st.session_state.user_name = s_name
+                            save_session_to_disk(s_email, s_name)
                             st.balloons()
                             st.success("Account Created Successfully!")
                             st.rerun()
@@ -1029,4 +1047,3 @@ else:
                     st.info(msg)
         else:
             st.write("You have no new notifications.")
-
