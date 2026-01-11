@@ -207,10 +207,11 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+
 # --- HELPER FUNCTIONS ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-
-RIDES_FILE = "rides.json"
+RIDES_FILE = os.path.join(BASE_DIR, "rides.json")
 
 def load_data():
     if not os.path.exists(RIDES_FILE):
@@ -245,7 +246,7 @@ def save_rides_list(rides):
     with open(RIDES_FILE, "w", encoding="utf-8") as f:
         json.dump(rides, f)
 
-PROFILES_FILE = "profiles.json"
+PROFILES_FILE = os.path.join(BASE_DIR, "profiles.json")
 def load_profiles():
     if not os.path.exists(PROFILES_FILE):
         return {}
@@ -315,7 +316,7 @@ def update_ride_request(ride_id, requester_email, action, requester_details=None
     return False
 
 # --- NOTIFICATION & DELETION HELPERS ---
-NOTIFICATIONS_FILE = "notifications.json"
+NOTIFICATIONS_FILE = os.path.join(BASE_DIR, "notifications.json")
 
 def load_notifications():
     if not os.path.exists(NOTIFICATIONS_FILE): return {}
@@ -349,7 +350,7 @@ def delete_profile_data(email):
         with open(PROFILES_FILE, "w", encoding="utf-8") as f: json.dump(profiles, f)
 
 # --- AUTH HELPERS ---
-USERS_FILE = "users.json"
+USERS_FILE = os.path.join(BASE_DIR, "users.json")
 
 def load_users():
     if not os.path.exists(USERS_FILE): return {}
@@ -361,7 +362,7 @@ def save_users(users):
     with open(USERS_FILE, "w", encoding="utf-8") as f: json.dump(users, f)
 
 # --- SESSION HELPERS (PERSISTENCE) ---
-SESSION_FILE = "session_token.json"
+SESSION_FILE = os.path.join(BASE_DIR, "session_token.json")
 
 def load_session_from_disk():
     if not os.path.exists(SESSION_FILE): return None
@@ -484,6 +485,8 @@ if "user_gender" not in st.session_state: st.session_state.user_gender = "Male"
 if "user_degree" not in st.session_state: st.session_state.user_degree = list(academic_structure.keys())[0]
 if "user_branch" not in st.session_state: st.session_state.user_branch = academic_structure[st.session_state.user_degree][0]
 if "user_year" not in st.session_state: st.session_state.user_year = "1st"
+if "ride_published" not in st.session_state: st.session_state.ride_published = False
+if "editing_ride_id" not in st.session_state: st.session_state.editing_ride_id = None
 
 # ==========================================
 # 🔒 PAGE 1: AUTHENTICATION (Login / Signup)
@@ -745,8 +748,10 @@ else:
                 has_req = any(req['email'] == st.session_state.user_email for req in r.get('requests', []))
                 seats = int(r.get("Seats", 0))
                 
-                if seats > 0 or is_host or has_req:
-                    final_rides.append(r)
+                if seats > 0 or has_req:
+                    # Exclude own rides from "Find a Ride" (they are in "My Rides")
+                    if not is_host:
+                        final_rides.append(r)
             visible_rides = final_rides
             
             if visible_rides:
@@ -868,38 +873,45 @@ else:
     # --- TAB 2: POST ---
     with tab2:
         st.header("Host a Ride 🚘")
-        with st.container(border=True):
-            with st.form("post_ride"):
-                direction = st.selectbox("Route", ["Campus ⮕ City", "City ⮕ Campus"])
-                if direction == "Campus ⮕ City":
-                    source = "IIT Indore"
-                    destination = st.selectbox("Destination", INDORE_LOCATIONS, key="post_dest")
-                else:
-                    source = st.selectbox("Pickup Point", INDORE_LOCATIONS, key="post_src")
-                    destination = "IIT Indore"
-                c1, c2 = st.columns(2)
-                date = c1.date_input("Date")
-                time = c2.time_input("Time")
-                seats = st.slider("Seats Empty", 1, 6, 3)
-                contact = st.text_input("WhatsApp Group Link (Optional)")
-                host_name = st.session_state.user_name if st.session_state.user_name else "Anonymous"
-                
-                submitted = st.form_submit_button("🚀 Publish Ride", use_container_width=True)
-                if submitted:
-                    new_ride = {
-                        "id": str(uuid.uuid4()),
-                        "host_email": st.session_state.user_email,
-                        "Direction": direction, "Source": source, "Destination": destination, 
-                        "Date": str(date), "Time": str(time), "Seats": seats, 
-                        "Contact": contact, "HostName": host_name, 
-                        "Gender": st.session_state.user_gender, "Degree": st.session_state.user_degree, 
-                        "Branch": st.session_state.user_branch, "Year": st.session_state.user_year,
-                        "requests": []
-                    }
-                    save_data(new_ride)
-                    st.balloons()
-                    st.success("Ride Posted")
-                    st.rerun()
+        
+        if st.session_state.ride_published:
+            st.success("Ride Published")
+            if st.button("Publish Another"):
+                st.session_state.ride_published = False
+                st.rerun()
+        else:
+            with st.container(border=True):
+                with st.form("post_ride"):
+                    direction = st.selectbox("Route", ["Campus ⮕ City", "City ⮕ Campus"])
+                    if direction == "Campus ⮕ City":
+                        source = "IIT Indore"
+                        destination = st.selectbox("Destination", INDORE_LOCATIONS, key="post_dest")
+                    else:
+                        source = st.selectbox("Pickup Point", INDORE_LOCATIONS, key="post_src")
+                        destination = "IIT Indore"
+                    c1, c2 = st.columns(2)
+                    date = c1.date_input("Date")
+                    time = c2.time_input("Time")
+                    seats = st.slider("Seats Empty", 1, 6, 3)
+                    contact = st.text_input("WhatsApp Group Link (Optional)")
+                    host_name = st.session_state.user_name if st.session_state.user_name else "Anonymous"
+                    
+                    submitted = st.form_submit_button("🚀 Publish Ride", use_container_width=True)
+                    if submitted:
+                        new_ride = {
+                            "id": str(uuid.uuid4()),
+                            "host_email": st.session_state.user_email,
+                            "Direction": direction, "Source": source, "Destination": destination, 
+                            "Date": str(date), "Time": str(time), "Seats": seats, 
+                            "Contact": contact, "HostName": host_name, 
+                            "Gender": st.session_state.user_gender, "Degree": st.session_state.user_degree, 
+                            "Branch": st.session_state.user_branch, "Year": st.session_state.user_year,
+                            "requests": []
+                        }
+                        save_data(new_ride)
+                        st.balloons()
+                        st.session_state.ride_published = True
+                        st.rerun()
 
     # --- TAB 3: MY RIDES ---
     with tab3:
@@ -915,46 +927,66 @@ else:
                     c1.write(f"**Seats:** {ride['Seats']}")
                     c2.write(f"**Status:** Active")
                     
-                    st.subheader("Edit Details")
-                    # Unique keys for form widgets
                     rid = ride['id']
-                    with st.form(key=f"edit_{rid}"):
-                         # Parse existing date/time safe-guarded
-                         try:
-                             curr_date = datetime.strptime(ride['Date'], '%Y-%m-%d').date()
-                         except:
-                             curr_date = datetime.now().date()
-                             
-                         try:
-                             curr_time_obj = datetime.strptime(ride['Time'], '%H:%M:%S').time()
-                         except:
-                             curr_time_obj = datetime.now().time()
+                    
+                    # Toggle Edit Mode
+                    is_editing = (st.session_state.editing_ride_id == rid)
+                    
+                    if not is_editing:
+                        if st.button("✏️ Edit Ride", key=f"btn_edit_{rid}"):
+                            st.session_state.editing_ride_id = rid
+                            st.rerun()
+                    
+                    if is_editing:
+                        st.subheader("Edit Details")
+                        with st.form(key=f"edit_{rid}"):
+                             # Parse existing date/time safe-guarded
+                             try:
+                                 curr_date = datetime.strptime(ride['Date'], '%Y-%m-%d').date()
+                             except:
+                                 curr_date = datetime.now().date()
+                                 
+                             try:
+                                 curr_time_obj = datetime.strptime(ride['Time'], '%H:%M:%S').time()
+                             except:
+                                 curr_time_obj = datetime.now().time()
 
-                         new_date = st.date_input("Date", curr_date)
-                         new_time = st.time_input("Time", curr_time_obj)
-                         # Handle seats as int
-                         try:
-                             curr_seats = int(ride['Seats'])
-                         except:
-                             curr_seats = 3
+                             new_date = st.date_input("Date", curr_date)
+                             new_time = st.time_input("Time", curr_time_obj)
+                             # Handle seats as int
+                             try:
+                                 curr_seats = int(ride['Seats'])
+                             except:
+                                 curr_seats = 3
+                                 
+                             new_seats = st.slider("Seats Empty", 1, 6, curr_seats)
+                             new_contact = st.text_input("Contact Link", value=ride.get('Contact', ''))
                              
-                         new_seats = st.slider("Seats Empty", 1, 6, curr_seats)
-                         new_contact = st.text_input("Contact Link", value=ride.get('Contact', ''))
-                         
-                         if st.form_submit_button("Save Changes"):
-                             ride['Date'] = str(new_date)
-                             ride['Time'] = str(new_time)
-                             ride['Seats'] = new_seats
-                             ride['Contact'] = new_contact
-                             save_rides_list(rides)
-                             
-                             # Notify Accepted Members
-                             for req in ride.get('requests', []):
-                                 if req['status'] == 'Accepted':
-                                      add_notification(req['email'], f"📢 Ride Update: The ride from {ride['Source']} to {ride['Destination']} details have been modified by host.")
-                             
-                             st.success("Ride Updated Successfully!")
-                             st.rerun()
+                             c_save, c_cancel = st.columns(2)
+                             if c_save.form_submit_button("Save Changes"):
+                                 ride['Date'] = str(new_date)
+                                 ride['Time'] = str(new_time)
+                                 ride['Seats'] = new_seats
+                                 ride['Contact'] = new_contact
+                                 save_rides_list(rides)
+                                 
+                                 # Notify Accepted Members
+                                 for req in ride.get('requests', []):
+                                     if req['status'] == 'Accepted':
+                                          add_notification(req['email'], f"📢 Ride Update: The ride from {ride['Source']} to {ride['Destination']} details have been modified by host.")
+                                 
+                                 st.session_state.editing_ride_id = None # Close edit mode
+                                 st.success("Ride Updated Successfully!")
+                                 st.rerun()
+                                 
+                             if c_cancel.form_submit_button("Cancel"):
+                                 st.session_state.editing_ride_id = None
+                                 st.rerun()
+                    
+                    if st.button("🗑️ Delete Ride", key=f"del_my_ride_{rid}"):
+                        delete_ride_data(rid)
+                        st.success("Ride Deleted")
+                        st.rerun()
         else:
             st.info("You haven't posted any rides yet.")
 
