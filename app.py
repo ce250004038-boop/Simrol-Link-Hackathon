@@ -14,7 +14,7 @@ from datetime import datetime
 
 st.set_page_config(page_title="Simrol-Link", page_icon="🚕", layout="wide")
 
-# Configure Gemini if available
+
 model = None
 api_status = "ok" # ok, no_secrets, no_key
 
@@ -217,8 +217,7 @@ def load_data():
     
     for ride in rides:
         try:
-            # Combine Date and Time strings to datetime object
-            # Assuming Date is YYYY-MM-DD and Time is HH:MM:SS
+          
             ride_dt = datetime.strptime(f"{ride['Date']} {ride['Time']}", "%Y-%m-%d %H:%M:%S")
             if ride_dt > current_time:
                 valid_rides.append(ride)
@@ -539,9 +538,7 @@ if not st.session_state.logged_in:
                             st.error("🚫 User already exists! Please Login.")
                         else:
                             register_user(s_email, s_pass)
-                            # Auto-login after signup ? Maybe ask for name first? 
-                            # For now, let's redirect them to login to enter name or just set a default
-                            # Let's enforce name entry in Signup too to be smooth
+                           
                             st.session_state.logged_in = True
                             st.session_state.user_email = s_email
                             st.session_state.user_name = s_email.split("@")[0] # Default name
@@ -637,8 +634,7 @@ else:
                     st.success("Profile Updated! ✅")
                     st.rerun()
         else:
-             # Just a small button to re-open if needed, or literally nothing as requested "vanish"
-             # I will put a very small button 
+           
              if st.button("⚙️ Edit Profile", key="open_edit"):
                  st.session_state.force_edit = True
                  st.rerun()
@@ -657,7 +653,7 @@ else:
             st.rerun()
 
     # --- MAIN CONTENT ---
-    # Always show Home View now (Profile is in sidebar)
+  
     col1, col2 = st.columns([2, 1])
     with col1:
         st.title("Simrol-Link 🚕✨")
@@ -696,8 +692,7 @@ else:
         
         rides = load_data()
         if rides:
-            # Convert to DataFrame for easier filtering display logic or iterate manually
-            # Let's iterate manually to handle the logic
+          
             visible_rides = [r for r in rides if r["Direction"] == filter_dir]
             
             # Filter by Location
@@ -713,8 +708,6 @@ else:
             if f_degree != "All": visible_rides = [r for r in visible_rides if r["Degree"] == f_degree]
             if f_branch != "All": visible_rides = [r for r in visible_rides if r["Branch"] == f_branch]
             
-            # Hide Full Rides (Zero Seats) 
-            # Show ONLY if: Seats > 0 OR User is Host OR User has sent a request
             final_rides = []
             for r in visible_rides:
                 is_host = r.get("host_email") == st.session_state.user_email
@@ -922,3 +915,4 @@ else:
                     st.info(msg)
         else:
             st.write("You have no new notifications.")
+
