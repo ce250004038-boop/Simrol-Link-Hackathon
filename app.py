@@ -21,13 +21,13 @@ api_status = "ok" # ok, no_secrets, no_key
 try:
     if "GOOGLE_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
     else:
         api_status = "no_key"
 except FileNotFoundError:
     api_status = "no_secrets"
 except Exception:
-    api_status = "no_secrets" # Streamlit raises generic error sometimes if secrets missing
+    api_status = "no_secrets"
 
 with st.expander("✨ Ask Gemini: Travel Safety Tip"):
     if st.button("Get a Safety Tip"):
@@ -44,6 +44,7 @@ with st.expander("✨ Ask Gemini: Travel Safety Tip"):
                 st.warning("⚠️ Trip Tip: Secrets found, but `GOOGLE_API_KEY` is missing in it.")
             
             st.info("🤖 AI Safety Tip (Offline): Always share your live location with a trusted friend or family member while travelling.")
+
 
 
 
