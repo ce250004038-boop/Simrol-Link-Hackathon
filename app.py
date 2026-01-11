@@ -29,21 +29,7 @@ except FileNotFoundError:
 except Exception:
     api_status = "no_secrets"
 
-with st.expander("✨ Ask Gemini: Travel Safety Tip"):
-    if st.button("Get a Safety Tip"):
-        if model:
-            try:
-                response = model.generate_content("Give me a short, one-sentence safety tip for students sharing a cab in India.")
-                st.info(f"🤖 AI Safety Tip: {response.text}")
-            except Exception as e:
-                st.error(f"⚠️ Could not generate tip. Error: {e}")
-        else:
-            if api_status == "no_secrets":
-                st.warning("⚠️ Trip Tip: Secrets file not found. Please create `.streamlit/secrets.toml` with your GOOGLE_API_KEY.")
-            elif api_status == "no_key":
-                st.warning("⚠️ Trip Tip: Secrets found, but `GOOGLE_API_KEY` is missing in it.")
-            
-            st.info("🤖 AI Safety Tip (Offline): Always share your live location with a trusted friend or family member while travelling.")
+
 
 
 
@@ -194,6 +180,30 @@ st.markdown("""
         border-bottom-left-radius: 10px;
         border-bottom-right-radius: 10px;
     }
+    
+    /* --- FIXES BY ANTIGRAVITY --- */
+    /* Force Date Input to Black */
+    div[data-testid="stDateInput"] input {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+        border: 2px solid #ff00cc !important;
+    }
+    
+    /* Force Form Submit Button (Publish Ride) to Black */
+    div[data-testid="stFormSubmitButton"] > button {
+        background-color: #000000 !important; 
+        color: #ffffff !important;
+        border: 2px solid #ff00cc !important;
+    }
+    div[data-testid="stFormSubmitButton"] > button:p {
+        color: #ffffff !important;
+    }
+    div[data-testid="stFormSubmitButton"] > button:hover {
+        background-color: #222222 !important;
+        color: #ffffff !important;
+        border-color: #ff00cc !important;
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -640,6 +650,27 @@ else:
                  st.rerun()
 
         st.divider()
+
+        # --- GEMINI SAFETY TOOL (MOVED) ---
+        with st.expander("✨ Ask Gemini: Travel Safety Tip"):
+            if st.button("Get a Safety Tip"):
+                if model:
+                    try:
+                        response = model.generate_content("Give me a short, practical travel safety tip for students in India.")
+                        st.success(f"🤖 AI Safety Tip: {response.text}")
+                    except Exception as e:
+                        st.error(f"Error fetching tip: {e}")
+                elif api_status == "no_key":
+                     st.warning("⚠️ Gemini API Key is missing. Set it in code or environment variables.")
+                elif api_status == "no_secrets":
+                     st.warning("⚠️ secrets.toml file missing. Create one with your API key.")
+                else:
+                     st.error("⚠️ Gemini Model not initialized.")
+                
+                if not model:
+                    st.info("🤖 AI Safety Tip (Offline): Always share your live location with a trusted friend or family member while travelling.")
+
+        st.divider()
         
         if st.button("🔓 Logout", use_container_width=True):
             clear_session_from_disk()
@@ -668,7 +699,7 @@ else:
     notif_count = len(my_notifs)
     notif_label = f"🔔 Notifications ({notif_count})" if notif_count > 0 else "🔔 Notifications"
 
-    tab1, tab2, tab3 = st.tabs(["🔥 Find a Ride", "➕ Post a Ride", notif_label])
+    tab1, tab2, tab3, tab4 = st.tabs(["🔥 Find a Ride", "➕ Post a Ride", "My Rides 🚗", notif_label])
 
     # --- TAB 1: FIND ---
     with tab1:
@@ -867,11 +898,68 @@ else:
                     }
                     save_data(new_ride)
                     st.balloons()
-                    st.success("Ride Posted Successfully!")
+                    st.success("Ride Posted")
                     st.rerun()
 
-    # --- TAB 3: NOTIFICATIONS ---
+    # --- TAB 3: MY RIDES ---
     with tab3:
+        st.header("My Rides 🚗")
+        rides = load_data()
+        my_rides = [r for r in rides if r.get("host_email") == st.session_state.user_email]
+        
+        if my_rides:
+            for ride in my_rides:
+                with st.expander(f"{ride['Date']} | {ride['Source']} ⮕ {ride['Destination']}"):
+                    c1, c2 = st.columns(2)
+                    c1.write(f"**Time:** {ride['Time']}")
+                    c1.write(f"**Seats:** {ride['Seats']}")
+                    c2.write(f"**Status:** Active")
+                    
+                    st.subheader("Edit Details")
+                    # Unique keys for form widgets
+                    rid = ride['id']
+                    with st.form(key=f"edit_{rid}"):
+                         # Parse existing date/time safe-guarded
+                         try:
+                             curr_date = datetime.strptime(ride['Date'], '%Y-%m-%d').date()
+                         except:
+                             curr_date = datetime.now().date()
+                             
+                         try:
+                             curr_time_obj = datetime.strptime(ride['Time'], '%H:%M:%S').time()
+                         except:
+                             curr_time_obj = datetime.now().time()
+
+                         new_date = st.date_input("Date", curr_date)
+                         new_time = st.time_input("Time", curr_time_obj)
+                         # Handle seats as int
+                         try:
+                             curr_seats = int(ride['Seats'])
+                         except:
+                             curr_seats = 3
+                             
+                         new_seats = st.slider("Seats Empty", 1, 6, curr_seats)
+                         new_contact = st.text_input("Contact Link", value=ride.get('Contact', ''))
+                         
+                         if st.form_submit_button("Save Changes"):
+                             ride['Date'] = str(new_date)
+                             ride['Time'] = str(new_time)
+                             ride['Seats'] = new_seats
+                             ride['Contact'] = new_contact
+                             save_rides_list(rides)
+                             
+                             # Notify Accepted Members
+                             for req in ride.get('requests', []):
+                                 if req['status'] == 'Accepted':
+                                      add_notification(req['email'], f"📢 Ride Update: The ride from {ride['Source']} to {ride['Destination']} details have been modified by host.")
+                             
+                             st.success("Ride Updated Successfully!")
+                             st.rerun()
+        else:
+            st.info("You haven't posted any rides yet.")
+
+    # --- TAB 4: NOTIFICATIONS (Renamed from TAB 3) ---
+    with tab4:
         st.header("Notifications 📢")
         if my_notifs:
             if st.button("Clear All Notifications", key="clear_notifs"):
