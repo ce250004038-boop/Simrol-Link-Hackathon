@@ -403,12 +403,6 @@ def delete_user_auth(email):
         save_users(users)
     delete_profile_data(email) # Also delete profile data
 
-def send_otp(email):
-    otp = str(random.randint(1000, 9999))
-    # In a real app, use smtplib here. For this demo/dev mode:
-    # st.toast(f"OTP sent to {email}: {otp}", icon="📧") 
-    # We will return it to display on screen for easy testing
-    return otp
 
 def delete_ride_data(ride_id):
     rides = load_data()
@@ -1035,3 +1029,4 @@ else:
                     st.info(msg)
         else:
             st.write("You have no new notifications.")
+
