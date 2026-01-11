@@ -42,7 +42,7 @@ Commuting from **IIT Indore (Simrol)** to Indore city (C21, Railway Station, Air
 ---
 
 ## 📸 Screenshots
-*(Add your screenshots here by uploading them to the repo)*
+
 
 | Login Screen | Find a Ride |
 |:---:|:---:|
@@ -79,7 +79,7 @@ Commuting from **IIT Indore (Simrol)** to Indore city (C21, Railway Station, Air
 
 ## 🤝 Contribution
 This project was built for a Hackathon 2026.
-* **Developer:** [Your Name / Team Name]
+* **Developer:** Samarpita Pal/ThinkForge
 * **Institution:** IIT Indore
 
 ---
