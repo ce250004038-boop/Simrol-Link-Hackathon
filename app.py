@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
-
-
+import google.generativeai as genai
 from PIL import Image
 import json
 import uuid
@@ -14,6 +13,15 @@ from datetime import datetime
 
 
 st.set_page_config(page_title="Simrol-Link", page_icon="🚕", layout="wide")
+
+if "GOOGLE_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    model = genai.GenerativeModel('gemini-pro')
+    
+    with st.expander("✨ Ask Gemini: Travel Safety Tip"):
+        if st.button("Get a Safety Tip"):
+            response = model.generate_content("Give me a short, one-sentence safety tip for students sharing a cab in India.")
+            st.info(f"🤖 AI Safety Tip: {response.text}")
 
 
 
