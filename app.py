@@ -915,4 +915,3 @@ else:
                     st.info(msg)
         else:
             st.write("You have no new notifications.")
-
