@@ -9,7 +9,7 @@ import random
 import hashlib
 import smtplib
 from email.message import EmailMessage
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 st.set_page_config(page_title="Simrol-Link", page_icon="🚕", layout="wide")
@@ -109,13 +109,29 @@ st.markdown("""
     li[data-baseweb="option"]:hover, 
     li[aria-selected="true"],
     li[data-baseweb="option"]:hover > div,
-    li[aria-selected="true"] > div {
+    li[aria-selected="true"] > div,
+    li[data-baseweb="option"]:hover *,
+    li[aria-selected="true"] * {
         background-color: #ff00cc !important; 
         color: #ffffff !important;
     }
     
     /* Ensure no white backgrounds on sub-elements */
     div[data-baseweb="select"] > div {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+    }
+
+    /* 6b. *** TOOLTIP FIX FOR LONG TEXT *** */
+    div[data-baseweb="tooltip"],
+    div[role="tooltip"],
+    .stTooltip {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+        border: 1px solid #ff00cc !important;
+    }
+    
+    div[data-baseweb="tooltip"] > div {
         background-color: #000000 !important;
         color: #ffffff !important;
     }
@@ -230,7 +246,9 @@ def load_data():
         try:
           
             ride_dt = datetime.strptime(f"{ride['Date']} {ride['Time']}", "%Y-%m-%d %H:%M:%S")
-            if ride_dt > current_time:
+            # Allow rides to persist for 2 hours after their start time
+            # This prevents immediate deletion if user is slightly late
+            if ride_dt + timedelta(hours=2) > current_time:
                 valid_rides.append(ride)
             else:
                 has_changes = True
@@ -770,8 +788,14 @@ else:
                 for ride in visible_rides:
                     is_my_ride = ride.get("host_email") == st.session_state.user_email
                     
+                    # Time Format for Display
+                    try:
+                        disp_time = datetime.strptime(ride['Time'], "%H:%M:%S").strftime("%I:%M %p")
+                    except:
+                        disp_time = ride['Time']
+
                     title_prefix = "🌟 MY RIDE | " if is_my_ride else ""
-                    with st.expander(f"{title_prefix}{ride['Time']} | {ride['Source']} ⮕ {ride['Destination']} ({ride['Seats']} Seats Left)"):
+                    with st.expander(f"{title_prefix}{disp_time} | {ride['Source']} ⮕ {ride['Destination']} ({ride['Seats']} Seats Left)"):
                         sc1, sc2 = st.columns(2)
                         sc1.write(f"**📅 Date:** {ride['Date']}")
                         sc1.write(f"**💺 Seats Left:** {ride['Seats']}")
@@ -895,35 +919,71 @@ else:
             with st.container(border=True):
                 with st.form("post_ride"):
                     direction = st.selectbox("Route", ["Campus ⮕ City", "City ⮕ Campus"])
+                    
+                    # Enhanced Location Selection with Placeholders
+                    locations_with_placeholder = ["Select Location"] + INDORE_LOCATIONS
+                    
                     if direction == "Campus ⮕ City":
                         source = "IIT Indore"
-                        destination = st.selectbox("Destination", INDORE_LOCATIONS, key="post_dest")
+                        # Use a specific placeholder for destination
+                        dest_options = ["Select Destination"] + INDORE_LOCATIONS
+                        destination = st.selectbox("Destination", dest_options, key="post_dest")
                     else:
-                        source = st.selectbox("Pickup Point", INDORE_LOCATIONS, key="post_src")
+                        # Use a specific placeholder for source
+                        src_options = ["Select Pickup Point"] + INDORE_LOCATIONS
+                        source = st.selectbox("Pickup Point", src_options, key="post_src")
                         destination = "IIT Indore"
+                    
                     c1, c2 = st.columns(2)
-                    date = c1.date_input("Date")
-                    time = c2.time_input("Time")
-                    seats = st.slider("Seats Empty", 1, 6, 3)
+                    date = c1.date_input("Date", value=None)
+                    
+                    # Generate AM/PM Time Slots (15 min intervals)
+                    time_slots = ["Select Time"]
+                    for hour in range(24):
+                        for minute in (0, 15, 30, 45):
+                            t_obj = datetime.strptime(f"{hour}:{minute}", "%H:%M")
+                            time_slots.append(t_obj.strftime("%I:%M %p"))
+                    
+                    selected_time_str = c2.selectbox("Time", time_slots, index=0)
+                    
+                    # Default seats to 0 to force user selection
+                    seats = st.slider("Seats Empty", 0, 6, 0)
+                    if seats == 0:
+                        st.caption("⚠️ Please select number of seats")
+                    
                     contact = st.text_input("WhatsApp Group Link (Optional)")
                     host_name = st.session_state.user_name if st.session_state.user_name else "Anonymous"
                     
                     submitted = st.form_submit_button("🚀 Publish Ride", use_container_width=True)
                     if submitted:
-                        new_ride = {
-                            "id": str(uuid.uuid4()),
-                            "host_email": st.session_state.user_email,
-                            "Direction": direction, "Source": source, "Destination": destination, 
-                            "Date": str(date), "Time": str(time), "Seats": seats, 
-                            "Contact": contact, "HostName": host_name, 
-                            "Gender": st.session_state.user_gender, "Degree": st.session_state.user_degree, 
-                            "Branch": st.session_state.user_branch, "Year": st.session_state.user_year,
-                            "requests": []
-                        }
-                        save_data(new_ride)
-                        st.balloons()
-                        st.session_state.ride_published = True
-                        st.rerun()
+                        # VALIDATION
+                        if (direction == "Campus ⮕ City" and destination == "Select Destination") or \
+                           (direction == "City ⮕ Campus" and source == "Select Pickup Point"):
+                            st.error("⚠️ Please select a valid Destination or Pickup Point.")
+                        elif date is None:
+                            st.error("⚠️ Please select a Date.")
+                        elif selected_time_str == "Select Time":
+                            st.error("⚠️ Please select a Time.")
+                        elif seats == 0:
+                             st.error("⚠️ Please select number of seats (at least 1).")
+                        else:
+                            # Convert AM/PM back to 24H for storage
+                            saved_time = datetime.strptime(selected_time_str, "%I:%M %p").strftime("%H:%M:%S")
+                            
+                            new_ride = {
+                                "id": str(uuid.uuid4()),
+                                "host_email": st.session_state.user_email,
+                                "Direction": direction, "Source": source, "Destination": destination, 
+                                "Date": str(date), "Time": saved_time, "Seats": seats, 
+                                "Contact": contact, "HostName": host_name, 
+                                "Gender": st.session_state.user_gender, "Degree": st.session_state.user_degree, 
+                                "Branch": st.session_state.user_branch, "Year": st.session_state.user_year,
+                                "requests": []
+                            }
+                            save_data(new_ride)
+                            st.balloons()
+                            st.session_state.ride_published = True
+                            st.rerun()
 
     # --- TAB 3: MY RIDES ---
     with tab3:
@@ -935,7 +995,14 @@ else:
             for ride in my_rides:
                 with st.expander(f"{ride['Date']} | {ride['Source']} ⮕ {ride['Destination']}"):
                     c1, c2 = st.columns(2)
-                    c1.write(f"**Time:** {ride['Time']}")
+                    
+                    # Convert to AM/PM for display
+                    try:
+                        disp_time = datetime.strptime(ride['Time'], "%H:%M:%S").strftime("%I:%M %p")
+                    except:
+                        disp_time = ride['Time']
+                        
+                    c1.write(f"**Time:** {disp_time}")
                     c1.write(f"**Seats:** {ride['Seats']}")
                     c2.write(f"**Status:** Active")
                     
