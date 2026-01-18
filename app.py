@@ -930,21 +930,26 @@ else:
         else:
             with st.container(border=True):
                 with st.form("post_ride"):
-                    direction = st.selectbox("Route", ["Campus ⮕ City", "City ⮕ Campus"])
+                    direction = st.selectbox("Route", ["Choose Direction", "Campus ⮕ City", "City ⮕ Campus"])
                     
                     # Enhanced Location Selection with Placeholders
                     locations_with_placeholder = ["Select Location"] + INDORE_LOCATIONS
+                    
+                    source = "Select Pickup Point"
+                    destination = "Select Destination" # Default values
                     
                     if direction == "Campus ⮕ City":
                         source = "IIT Indore"
                         # Use a specific placeholder for destination
                         dest_options = ["Select Destination"] + INDORE_LOCATIONS
                         destination = st.selectbox("Destination", dest_options, key="post_dest")
-                    else:
+                    elif direction == "City ⮕ Campus":
                         # Use a specific placeholder for source
                         src_options = ["Select Pickup Point"] + INDORE_LOCATIONS
                         source = st.selectbox("Pickup Point", src_options, key="post_src")
                         destination = "IIT Indore"
+                    else:
+                        st.info("👆 Please choose a route direction to proceed.")
                     
                     c1, c2 = st.columns(2)
                     date = c1.date_input("Date", value=None)
@@ -969,7 +974,9 @@ else:
                     submitted = st.form_submit_button("🚀 Publish Ride", use_container_width=True)
                     if submitted:
                         # VALIDATION
-                        if (direction == "Campus ⮕ City" and destination == "Select Destination") or \
+                        if direction == "Choose Direction":
+                             st.error("⚠️ Please select a valid Route Direction.")
+                        elif (direction == "Campus ⮕ City" and destination == "Select Destination") or \
                            (direction == "City ⮕ Campus" and source == "Select Pickup Point"):
                             st.error("⚠️ Please select a valid Destination or Pickup Point.")
                         elif date is None:
