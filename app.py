@@ -783,8 +783,8 @@ else:
             final_rides = []
             for r in visible_rides:
                 # Strip email to ensure clean comparison
-                host_email = r.get("host_email", "").strip()
-                current_email = st.session_state.user_email.strip()
+                host_email = r.get("host_email", "").strip().lower()
+                current_email = st.session_state.user_email.strip().lower()
                 
                 is_host = host_email == current_email
                 has_req = any(req['email'] == current_email for req in r.get('requests', []))
@@ -929,9 +929,10 @@ else:
                 st.rerun()
         else:
             with st.container(border=True):
+                route_options = ["Choose Direction", "Campus ⮕ City", "City ⮕ Campus"]
+                direction = st.selectbox("Route", route_options)
+
                 with st.form("post_ride"):
-                    route_options = ["Choose Direction", "Campus ⮕ City", "City ⮕ Campus"]
-                    direction = st.selectbox("Route", route_options)
                     
                     # Enhanced Location Selection with Placeholders
                     locations_with_placeholder = ["Select Location"] + INDORE_LOCATIONS
@@ -950,7 +951,8 @@ else:
                         source = st.selectbox("Pickup Point", src_options, key="post_src")
                         destination = "IIT Indore"
                     else:
-                        st.info("👆 Please choose a route direction to proceed.")
+                        st.selectbox("Destination / Pickup", ["Select Route First"], disabled=True)
+                        st.info("👆 Please choose a route direction to activate.")
                     
                     c1, c2 = st.columns(2)
                     date = c1.date_input("Date", value=None)
@@ -1010,7 +1012,8 @@ else:
         st.header("My Rides 🚗")
         rides = load_data()
         # Robust filtering for My Rides
-        my_rides = [r for r in rides if r.get("host_email", "").strip() == st.session_state.user_email.strip()]
+        # Robust filtering for My Rides
+        my_rides = [r for r in rides if r.get("host_email", "").strip().lower() == st.session_state.user_email.strip().lower()]
         
         if my_rides:
             for ride in my_rides:
