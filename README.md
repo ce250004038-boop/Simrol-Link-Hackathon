@@ -43,18 +43,7 @@ Commuting from **IIT Indore (Simrol)** to Indore city (C21, Railway Station, Air
 
 ---
 
-## 📸 Screenshots
 
-
-| Login Screen | Find a Ride |
-|:---:|:---:|
-| <img src="login.png" width="300"> | <img src="findaride.png" width="300"> |
-
-| Post a Ride | Notifications |
-|:---:|:---:|
-| <img src="postaride.png" width="300"> | <img src="notifications.png" width="300"> |
-
----
 
 ## 🚀 How to Run Locally
 
