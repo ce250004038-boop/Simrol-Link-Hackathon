@@ -736,7 +736,13 @@ else:
 
     # --- TAB 1: FIND ---
     with tab1:
-        st.header("Find your Squad 👯‍♂️")
+        c_h1, c_h2 = st.columns([3, 1])
+        with c_h1:
+            st.header("Find your Squad 👯‍♂️")
+        with c_h2:
+            if st.button("🔄 Refresh", key="refresh_find"):
+                st.rerun()
+
         with st.container(border=True):
             filter_dir = st.radio("Direction", ["Campus ⮕ City", "City ⮕ Campus"], horizontal=True)
             
@@ -756,12 +762,14 @@ else:
         
         rides = load_data()
         if rides:
-          
+            # Robust Filtering for Direction (Handle potential Unicode mismatch)
             visible_rides = [r for r in rides if r["Direction"] == filter_dir]
+            if not visible_rides:
+                 visible_rides = [r for r in rides if r["Direction"].split()[0] == filter_dir.split()[0]]
             
             # Filter by Location
             if selected_location != "All":
-                if filter_dir == "Campus ⮕ City":
+                if filter_dir.startswith("Campus"):
                     visible_rides = [r for r in visible_rides if r["Destination"] == selected_location]
                 else:
                     visible_rides = [r for r in visible_rides if r["Source"] == selected_location]
@@ -774,8 +782,12 @@ else:
             
             final_rides = []
             for r in visible_rides:
-                is_host = r.get("host_email") == st.session_state.user_email
-                has_req = any(req['email'] == st.session_state.user_email for req in r.get('requests', []))
+                # Strip email to ensure clean comparison
+                host_email = r.get("host_email", "").strip()
+                current_email = st.session_state.user_email.strip()
+                
+                is_host = host_email == current_email
+                has_req = any(req['email'] == current_email for req in r.get('requests', []))
                 seats = int(r.get("Seats", 0))
                 
                 if seats > 0 or has_req:
@@ -786,7 +798,7 @@ else:
             
             if visible_rides:
                 for ride in visible_rides:
-                    is_my_ride = ride.get("host_email") == st.session_state.user_email
+                    is_my_ride = ride.get("host_email", "").strip() == st.session_state.user_email.strip()
                     
                     # Time Format for Display
                     try:
@@ -911,7 +923,7 @@ else:
         st.header("Host a Ride 🚘")
         
         if st.session_state.ride_published:
-            st.success("Ride Published")
+            st.success("✅ Ride Published Successfully!")
             if st.button("Publish Another"):
                 st.session_state.ride_published = False
                 st.rerun()
@@ -989,7 +1001,8 @@ else:
     with tab3:
         st.header("My Rides 🚗")
         rides = load_data()
-        my_rides = [r for r in rides if r.get("host_email") == st.session_state.user_email]
+        # Robust filtering for My Rides
+        my_rides = [r for r in rides if r.get("host_email", "").strip() == st.session_state.user_email.strip()]
         
         if my_rides:
             for ride in my_rides:
